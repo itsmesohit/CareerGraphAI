@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # FalkorDB Graph Database Container
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: careergraph-falkordb
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL for Relational SaaS metadata
+  postgres:
+    image: postgres:16-alpine
+    container_name: careergraph-postgres
+    environment:
+      POSTGRES_USER: careergraph
+      POSTGRES_PASSWORD: careergraph_secure_password
+      POSTGRES_DB: careergraph_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careergraph -d careergraph_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Redis for BullMQ Background Queues
+  redis:
+    image: redis:7-alpine
+    container_name: careergraph-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Backend Modular Monolith
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: careergraph-server
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: 6379
+      FALKORDB_GRAPH_ID: careergraph
+      DATABASE_URL: postgresql://careergraph:careergraph_secure_password@postgres:5432/careergraph_db?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: careergraph-secret-jwt-key-2026-falkordb-hacks
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3001:3001"
+    depends_on:
+      falkordb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Frontend Web App
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: careergraph-client
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  falkordb_data:
+  postgres_data:
+  redis_data:

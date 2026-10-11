@@ -1,0 +1,98 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  role         String        @default("CANDIDATE")
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription Subscription?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Tenant {
+  id            String                  @id @default(uuid())
+  name          String
+  slug          String                  @unique
+  users         User[]
+  auditLogs     AuditLog[]
+  credentials   IntegrationCredential[]
+  screeningAns  ScreeningAnswer[]
+  workflowTasks WorkflowTask[]
+  createdAt     DateTime                @default(now())
+}
+
+model Subscription {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                   String   @default("PRO") // FREE, PRO, ENTERPRISE
+  status                 String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED
+  currentPeriodEnd       DateTime @default(now())
+  dailyApplicationsCount Int      @default(0)
+  maxDailyApplications   Int      @default(25)
+  monthlyAiTokensUsed    Int      @default(0)
+  maxMonthlyAiTokens     Int      @default(100000)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  action    String
+  details   String?
+  timestamp DateTime @default(now())
+}
+
+model IntegrationCredential {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provider      String   // GMAIL, MICROSOFT, ADZUNA, REMOTIVE, GREENHOUSE
+  status        String   @default("CONNECTED") // CONNECTED, DISCONNECTED, ERROR
+  encryptedData String?
+  metadataJson  String?
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, provider])
+}
+
+model ScreeningAnswer {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  questionKey  String
+  questionText String
+  answerText   String
+  provenance   String?
+  verified     Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, questionKey])
+}
+
+model WorkflowTask {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        String   // JOB_DISCOVERY, MATCH_EVALUATION, APPLICATION_PREP, OUTREACH
+  status      String   @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED, WAITING_FOR_USER
+  payloadJson String?
+  resultJson  String?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
