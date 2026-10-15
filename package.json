@@ -1,32 +1,44 @@
 {
-  "name": "career-graph-ai",
-  "version": "1.0.0",
-  "description": "Graph-Powered AI Job Search and Auto-Application SaaS using FalkorDB",
+  "name": "careergraph-monorepo",
   "private": true,
-  "workspaces": [
-    "server",
-    "client"
-  ],
+  "version": "0.1.0",
+  "description": "CareerGraph AI — autonomous AI job search platform with graph memory (pnpm + Turborepo monorepo)",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
-    "dev:server": "npm run dev --workspace=server",
-    "dev:client": "npm run dev --workspace=client",
-    "build": "npm run build --workspace=server && npm run build --workspace=client",
-    "test": "npm run test --workspace=server",
-    "test:watch": "npm run test:watch --workspace=server",
-    "seed": "npm run seed --workspace=server"
+    "dev": "turbo run dev --parallel",
+    "dev:api": "pnpm --filter @careergraph/api dev",
+    "dev:web": "pnpm --filter @careergraph/web dev",
+    "dev:worker": "pnpm --filter @careergraph/worker dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "lint": "turbo run lint",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,yaml,yml}\" --ignore-path .prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css,yaml,yml}\" --ignore-path .prettierignore",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm --filter @careergraph/db db:generate",
+    "db:migrate": "pnpm --filter @careergraph/db db:migrate",
+    "db:deploy": "pnpm --filter @careergraph/db db:deploy",
+    "db:reset": "pnpm --filter @careergraph/db db:reset",
+    "db:seed": "pnpm --filter @careergraph/db db:seed",
+    "db:studio": "pnpm --filter @careergraph/db db:studio",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
-  },
-  "keywords": [
-    "falkordb",
-    "graph-database",
-    "ai-agent",
-    "job-search",
-    "career-memory",
-    "graph-reasoning"
-  ],
-  "author": "CareerGraph AI Team",
-  "license": "MIT"
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.20.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^15.15.0",
+    "prettier": "^3.5.1",
+    "turbo": "^2.4.4",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.1"
+  }
 }

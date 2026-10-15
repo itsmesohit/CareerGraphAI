@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareerGraph AI — Assisted Apply Copilot</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <header class="panel-header">
+      <div class="brand">
+        <div class="brand-icon">✦</div>
+        <div>
+          <h1 class="brand-title">CareerGraph AI</h1>
+          <span class="brand-subtitle">Assisted Apply Copilot</span>
+        </div>
+      </div>
+      <div id="auth-status-badge" class="badge badge-unauthenticated">Not Connected</div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="panel-body">
+          <!-- Login / Token (if not logged in) -->
+      <section id="auth-section" class="card">
+        <h2 class="card-title">Sign in to CareerGraph</h2>
+        <p class="card-desc">Sign in with your CareerGraph account to sync verified graph memory (7-day session).</p>
+        <div class="form-group">
+          <input type="email" id="login-email" placeholder="you@example.com" class="input" autocomplete="email">
+          <input type="password" id="login-password" placeholder="Password" class="input" autocomplete="current-password">
+          <button id="login-btn" class="btn btn-primary">Sign In</button>
+        </div>
+        <div class="divider"><span>or paste a session token</span></div>
+        <div class="form-group">
+          <input type="password" id="token-input" placeholder="Paste your bearer token..." class="input">
+          <button id="save-token-btn" class="btn btn-secondary">Connect Session</button>
+        </div>
+      </section>
+
+      <!-- Account Summary (when logged in) -->
+      <section id="account-section" class="card" style="display: none;">
+        <div class="card-header-row">
+          <div>
+            <span id="account-name" class="company-name">Candidate</span>
+            <h2 id="account-email" class="role-title" style="font-size: 12px;">email</h2>
+          </div>
+          <div id="ai-badge" class="pill pill-score">AI ●</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><span id="stat-completeness" class="stat-value">0%</span><span class="stat-label">Profile</span></div>
+          <div class="stat"><span id="stat-applications" class="stat-value">0</span><span class="stat-label">Applications</span></div>
+          <div class="stat"><span id="stat-jobs" class="stat-value">0</span><span class="stat-label">Open Jobs</span></div>
+        </div>
+        <button id="logout-btn" class="btn btn-secondary btn-small">Sign out</button>
+      </section>
+
+      <!-- Job Capture (when logged in) -->
+      <section id="capture-section" class="card" style="display: none;">
+        <h2 class="card-title">Capture This Job</h2>
+        <p class="card-desc">Detects Schema.org JobPosting structured data on the current page and saves it to your CareerGraph pipeline (dedup + graph projection included).</p>
+        <button id="capture-job-btn" class="btn btn-primary">Save Job to CareerGraph</button>
+        <p id="capture-status" class="card-desc" style="margin-top: 8px;"></p>
+      </section>
+
+      <!-- Active Application Details -->
+      <section id="app-section" class="card" style="display: none;">
+        <div class="card-header-row">
+          <div>
+            <span id="job-company" class="company-name">Target Company</span>
+            <h2 id="job-title" class="role-title">Job Title</h2>
+          </div>
+          <div id="match-score-pill" class="pill pill-score">90% Fit</div>
+        </div>
+
+        <div class="hash-banner">
+          <span class="hash-icon">🛡️</span>
+          <div class="hash-text">
+            <strong>SHA-256 Verified Gate</strong>
+            <span id="content-hash-text" class="hash-code">Loading hash...</span>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="action-grid">
+          <button id="trigger-autofill-btn" class="btn btn-primary btn-large">
+            <span>Autofill Form</span>
+          </button>
+          <button id="report-submitted-btn" class="btn btn-success">
+            <span>Mark as Submitted</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Tailored Packet Accordions -->
+      <section id="packet-section" class="card" style="display: none;">
+        <h3 class="card-title">Grounded Application Packet</h3>
+
+        <div class="accordion">
+          <button class="accordion-header" id="toggle-bullets-btn">
+            <span>Tailored Bullets (<span id="bullets-count">0</span>)</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="accordion-content" id="bullets-list"></div>
+        </div>
+
+        <div class="accordion">
+          <button class="accordion-header" id="toggle-cover-letter-btn">
+            <span>Tailored Cover Letter</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="accordion-content" id="cover-letter-content"></div>
+        </div>
+
+        <div class="accordion">
+          <button class="accordion-header" id="toggle-qa-btn">
+            <span>Screening Q&A (<span id="qa-count">0</span>)</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="accordion-content" id="qa-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="panel-footer">
+      <div class="footer-status" id="footer-status-text">Ready to assist application</div>
+      <a href="http://localhost:5173/dashboard" target="_blank" class="footer-link">Open Dashboard ↗</a>
+    </footer>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

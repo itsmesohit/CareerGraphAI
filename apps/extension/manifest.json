@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "CareerGraph AI — Assisted Apply",
+  "version": "1.0.0",
+  "description": "Autonomous job application copilot with verified graph memory, form autofill, and cryptographic approval protection.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "sidePanel",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Open CareerGraph Copilot"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
