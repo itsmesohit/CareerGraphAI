@@ -5,7 +5,10 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![React Flow](https://img.shields.io/badge/React_Flow-v12-00D8FF.svg)](https://reactflow.dev/)
 [![Express](https://img.shields.io/badge/Backend-Express_Modular_Monolith-green.svg)](https://expressjs.com/)
-[![Tests](https://img.shields.io/badge/Tests-Vitest_Passing_(9/9)-brightgreen.svg)]()
+[![AI Layer](https://img.shields.io/badge/AI-z--ai/glm--5.3_via_NVIDIA_NIM-76b900.svg)](https://build.nvidia.com)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension_(MV3)-4285F4.svg)](apps/extension)
+[![Tests](https://img.shields.io/badge/Tests-Vitest_Passing_(15/15)-brightgreen.svg)]()
+[![Domain Verification](https://img.shields.io/badge/Resend-Domain_Verified_(codingspark.in)-emerald.svg)]()
 
 > **Primary Hackathon Track**: Agent Memory and Coordination  
 > **Secondary Hackathon Track**: Agents That Act on Connected Data  
@@ -199,6 +202,34 @@ npm test
 - `GET /api/v1/graph` - Retrieve graph nodes and edges for React Flow visualization
 - `GET /api/v1/graph/timeline` - Retrieve agent reasoning and Cypher activity log
 - `GET /api/v1/usage` - SaaS quotas and tier limits
+- `GET /api/v1/notifications/status` - Check Resend domain verification and active notification channels
+- `POST /api/v1/notifications/test` - Dispatch live test notification from verified domain `codingspark.in`
+- `GET /api/v1/ai/status` - AI layer status: provider, model, streaming, fallback reason
+- `POST /api/v1/ai/copilot` - Grounded career copilot chat (profile, matches, next actions)
+- `POST /api/v1/ai/copilot/stream` - Server-Sent Events streaming copilot
+- `POST /api/v1/extension/auth/login` - Chrome extension login (dedicated 7-day session token)
+- `GET /api/v1/extension/me` - Extension popup summary (profile completeness, pipeline, jobs)
+- `POST /api/v1/extension/jobs/capture` - Capture a JobPosting from any job board into the graph pipeline
+
+---
+
+## 11. AI Layer & Browser Extension
+
+### Grounded LLM Layer (zero-hallucination by construction)
+The specialist agents (Resume Tailoring, Cover Letter, Question Answering) and the interactive Career Copilot are LLM-enhanced via **any OpenAI-compatible endpoint** — configured for **NVIDIA NIM** hosting `z-ai/glm-5.3` (`AI_BASE_URL=https://integrate.api.nvidia.com/v1`).
+- **Grounding**: the model may only cite facts inside `<candidate_facts>`; every bullet is validated against real experience/project tokens.
+- **Injection defense**: all external/job text passes the Phase 11 sanitizer (`<UNTRUSTED_EXTERNAL_DATA>` wrapping).
+- **Graceful fallback**: any LLM failure, timeout, or malformed output falls back to the deterministic agents — the platform never breaks, and every response reports its mode (`LLM` | `DETERMINISTIC_FALLBACK`).
+- **Live UI**: a floating Copilot widget streams answers grounded in your verified career graph.
+
+### Chrome Extension (Manifest V3)
+`apps/extension` — load it via `chrome://extensions` → *Load unpacked*.
+- Detects Schema.org/JobPosting JSON-LD on any job board and captures it into the shared dedup → requirements → FalkorDB projection pipeline with one click.
+- Dedicated side panel for application-packet inspection, form autofill, and submission reporting.
+- Extension auth uses a real 7-day Session row, so device revocation, admin suspension, and `requireAuth` all apply.
+
+### Light Modern UI
+The web app ships a light, open-source-tool aesthetic: white canvas, slate ink, blueprint grid backdrop, soft-shadowed glass panels, and sky→indigo accent gradients.
 
 ---
 

@@ -1,0 +1,28 @@
+{
+  "name": "@careergraph/worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'Worker test ok'",
+    "lint": "echo 'lint worker ok'"
+  },
+  "dependencies": {
+    "@careergraph/db": "workspace:*",
+    "@careergraph/shared": "workspace:*",
+    "bullmq": "^5.41.0",
+    "dotenv": "^16.4.7",
+    "ioredis": "^5.5.0",
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.6",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,1147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_OWNER
+  ORG_ADMIN
+  MENTOR
+  CANDIDATE
+}
+
+enum OrgType {
+  COLLEGE
+  COACHING
+  COMPANY
+  OTHER
+}
+
+enum OtpPurpose {
+  VERIFY_EMAIL
+  LOGIN
+  RESET_PASSWORD
+  CHANGE_EMAIL
+  SENSITIVE_ACTION
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum FactSource {
+  RESUME_UPLOAD
+  USER_INPUT
+  AGENT_SUGGESTION
+  ORG_IMPORT
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  USER_VERIFIED
+  SUPERSEDED
+}
+
+enum AutomationMode {
+  STRICT_APPROVAL
+  BATCH_REVIEW
+  FULL_AUTO
+}
+
+enum QuestionCategory {
+  IDENTITY
+  WORK_AUTH
+  LOCATION
+  COMPENSATION
+  AVAILABILITY
+  EXPERIENCE
+  EDUCATION
+  MOTIVATION
+  LEGAL
+  EEO
+}
+
+enum QuestionSensitivity {
+  PUBLIC
+  CONFIDENTIAL
+  HIGHLY_SENSITIVE
+}
+
+enum AnswerScope {
+  GLOBAL
+  PER_COUNTRY
+  PER_COMPANY
+  PER_ROLE_TYPE
+}
+
+enum IntegrationProvider {
+  GMAIL
+  OUTLOOK
+  GOOGLE_CALENDAR
+  OUTLOOK_CALENDAR
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  REVOKED
+  EXPIRED
+}
+
+enum OutreachStatus {
+  DRAFT
+  APPROVED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum EmailClassificationCategory {
+  APPLICATION_ACKNOWLEDGED
+  REJECTION
+  INTERVIEW_INVITATION
+  OFFER_RECEIVED
+  GENERAL_UPDATE
+}
+
+enum PlanTier {
+  INDIVIDUAL
+  ORGANIZATION
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+  ONE_TIME
+}
+
+enum PaymentProviderType {
+  RAZORPAY
+  STRIPE
+  FREE_DEV
+  OFFLINE_PO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  UNPAID
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum WebhookProcessStatus {
+  SUCCESS
+  DUPLICATE
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Authentication Models (Phase 1)
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String          @id @default(uuid())
+  name             String
+  email            String          @unique
+  passwordHash     String?
+  role             UserRole        @default(CANDIDATE)
+  isEmailVerified  Boolean         @default(false)
+  twoFactorEnabled Boolean         @default(false)
+  twoFactorSecret  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+  isSuspended      Boolean         @default(false)
+  suspendedReason  String?
+  dataExportRequestedAt DateTime?
+
+  sessions         Session[]
+  memberships      OrgMembership[]
+  auditLogs        AuditLog[]
+  profile          CandidateProfile?
+  onboardingState  OnboardingState?
+  savedSearches    SavedSearch[]
+  applications     Application[]
+  missingInfoRequests MissingInfoRequest[]
+  integrations     UserIntegration[]
+  recruiterOutreach RecruiterOutreach[]
+  inboundEmailEvents InboundEmailEvent[]
+  subscriptions    Subscription[]
+  invoices         Invoice[]
+  dailyUsageMeters DailyUsageMeter[]
+  cohortMemberships CohortMembership[]
+  studentConsents  StudentConsent[]
+  sentInvitations  OrgInvitation[]
+  driveApplications CampusDriveApplication[]
+
+  @@index([email])
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String    @unique
+  tokenFamily      String    @default(uuid())
+  userAgent        String?
+  ipAddress        String?
+  isRevoked        Boolean   @default(false)
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenFamily])
+}
+
+model OtpCode {
+  id         String     @id @default(uuid())
+  email      String
+  codeHash   String
+  purpose    OtpPurpose
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  ipAddress  String?
+  createdAt  DateTime   @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+}
+
+model RateLimitRecord {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  count           Int      @default(1)
+  windowExpiresAt DateTime
+  lastRequestedAt DateTime @default(now())
+
+  @@index([key, windowExpiresAt])
+}
+
+model Organization {
+  id                    String                   @id @default(uuid())
+  name                  String
+  slug                  String                   @unique
+  type                  OrgType                  @default(COMPANY)
+  logoUrl               String?
+  domain                String?                  // Verified email domain for auto-join (e.g. college.edu)
+  primaryColor          String?                  @default("#0284c7")
+  seatsPurchased        Int                      @default(50)
+  seatsUsed             Int                      @default(0)
+  defaultAutomationMode AutomationMode           @default(STRICT_APPROVAL)
+  maxDailyApplications  Int                      @default(25)
+  requireMentorReview   Boolean                  @default(false)
+  allowedCompanies      Json?
+  blockedCompanies      Json?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  memberships           OrgMembership[]
+  cohorts               Cohort[]
+  invitations           OrgInvitation[]
+  studentConsents       StudentConsent[]
+  campusDrives          CampusDrive[]
+  auditLogs             AuditLog[]
+  jobPostings           JobPosting[]
+  subscriptions         Subscription[]
+  invoices              Invoice[]
+
+  @@index([slug])
+  @@index([domain])
+}
+
+model OrgMembership {
+  id             String       @id @default(uuid())
+  orgId          String
+  userId         String
+  role           UserRole     @default(CANDIDATE)
+  joinedAt       DateTime     @default(now())
+
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@index([orgId])
+}
+
+model Cohort {
+  id           String             @id @default(uuid())
+  orgId        String
+  name         String
+  department   String?
+  gradYear     Int?
+  description  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  organization Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members      CohortMembership[]
+  invitations  OrgInvitation[]
+
+  @@index([orgId])
+}
+
+model CohortMembership {
+  id        String   @id @default(uuid())
+  cohortId  String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  cohort    Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, userId])
+  @@index([userId])
+  @@index([cohortId])
+}
+
+model StudentConsent {
+  id                 String       @id @default(uuid())
+  orgId              String
+  userId             String
+  shareProfile       Boolean      @default(true)
+  shareApplications  Boolean      @default(true)
+  shareResumes       Boolean      @default(true)
+  shareOffers        Boolean      @default(true)
+  allowMentorReview  Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId, userId])
+}
+
+model OrgInvitation {
+  id              String       @id @default(uuid())
+  orgId           String
+  cohortId        String?
+  email           String
+  name            String?
+  role            UserRole     @default(CANDIDATE)
+  token           String       @unique
+  status          String       @default("PENDING") // PENDING, ACCEPTED, EXPIRED, REVOKED
+  invitedByUserId String?
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime     @default(now())
+
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cohort          Cohort?      @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  invitedBy       User?        @relation(fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, email])
+  @@index([token])
+}
+
+model CampusDrive {
+  id                  String                   @id @default(uuid())
+  orgId               String
+  title               String
+  companyName         String
+  description         String                   @db.Text
+  roleType            String                   @default("Full-Time")
+  location            String?
+  ctcMin              Int?
+  ctcMax              Int?
+  currency            String                   @default("INR")
+  deadline            DateTime?
+  targetCohortIds     Json                     // Array of cohort IDs
+  minCgpa             Float?
+  eligibleDepartments Json?
+  status              String                   @default("ACTIVE") // ACTIVE, CLOSED, DRAFT
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  organization        Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  applications        CampusDriveApplication[]
+
+  @@index([orgId, status])
+}
+
+model CampusDriveApplication {
+  id         String      @id @default(uuid())
+  driveId    String
+  userId     String
+  status     String      @default("APPLIED") // APPLIED, SHORTLISTED, INTERVIEWING, OFFERED, REJECTED
+  resumeUrl  String?
+  appliedAt  DateTime    @default(now())
+  notes      String?     @db.Text
+  offeredCtc Int?
+
+  drive      CampusDrive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([driveId, userId])
+  @@index([driveId, status])
+  @@index([userId])
+}
+
+
+model AuditLog {
+  id          String        @id @default(uuid())
+  actorId     String?
+  userId      String?
+  orgId       String?
+  action      String
+  resource    String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime      @default(now())
+
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  org         Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([userId])
+  @@index([orgId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+model OutboxEvent {
+  id            String       @id @default(uuid())
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  error         String?
+  createdAt     DateTime     @default(now())
+  processedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Candidate Profile & Onboarding Models (Phase 2, Spec §6, §7, §8)
+// ---------------------------------------------------------------------------
+
+model CandidateProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  fullName          String?
+  headline          String?
+  phone             String?
+  locationCity      String?
+  locationState     String?
+  locationCountry   String?
+  linkedinUrl       String?
+  githubUrl         String?
+  portfolioUrl      String?
+  rawResumeText     String?  @db.Text
+  resumeFileName    String?
+  resumeAtsScore    Int?
+  resumeAtsGrade    String?
+  resumeAtsCheckedAt DateTime?
+  resumeAtsReport   Json?
+  coverLetterText   String?  @db.Text
+  profilePictureUrl String?
+  videoIntroUrl      String?
+  completenessScore Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experiences    Experience[]
+  educations     Education[]
+  skills         Skill[]
+  projects       Project[]
+  certifications Certification[]
+  preferences    CandidatePreferences?
+  answers        CandidateAnswer[]
+
+  @@index([userId])
+}
+
+model Experience {
+  id                 String             @id @default(uuid())
+  profileId          String
+  company            String
+  title              String
+  location           String?
+  employmentType     String?
+  startDate          String?
+  endDate            String?
+  isCurrent          Boolean            @default(false)
+  description        String?            @db.Text
+  metrics            String[]
+  technologies       String[]
+  source             FactSource         @default(RESUME_UPLOAD)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  supersededBy       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([verificationStatus])
+}
+
+model Education {
+  id                 String             @id @default(uuid())
+  profileId          String
+  institution        String
+  degree             String
+  field              String?
+  startDate          String?
+  endDate            String?
+  gradeOrCgpa        String?
+  source             FactSource         @default(RESUME_UPLOAD)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  supersededBy       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Skill {
+  id                 String             @id @default(uuid())
+  profileId          String
+  name               String
+  category           String?
+  proficiency        String?
+  yearsExperience    Float?
+  source             FactSource         @default(RESUME_UPLOAD)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  supersededBy       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([name])
+}
+
+model Project {
+  id                 String             @id @default(uuid())
+  profileId          String
+  name               String
+  role               String?
+  description        String?            @db.Text
+  techStack          String[]
+  url                String?
+  source             FactSource         @default(RESUME_UPLOAD)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  supersededBy       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Certification {
+  id                 String             @id @default(uuid())
+  profileId          String
+  name               String
+  issuer             String
+  issueDate          String?
+  expiryDate         String?
+  credentialId       String?
+  url                String?
+  source             FactSource         @default(RESUME_UPLOAD)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model CandidatePreferences {
+  id                  String         @id @default(uuid())
+  profileId           String         @unique
+  targetTitles        String[]
+  seniorityLevels     String[]
+  targetLocations     String[]
+  remotePreference    String         @default("REMOTE_FIRST")
+  minSalary           Int?
+  expectedSalary      Int?
+  currency            String         @default("USD")
+  noticePeriodDays    Int            @default(30)
+  blockedCompanies    String[]
+  automationMode      AutomationMode @default(STRICT_APPROVAL)
+  workAuthCountries   String[]
+  requiresSponsorship Boolean        @default(false)
+  updatedAt           DateTime       @updatedAt
+
+  profile CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model OnboardingState {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  currentStep    Int      @default(1)
+  isCompleted    Boolean  @default(false)
+  completedSteps Int[]
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CanonicalQuestion {
+  key              String              @id
+  category         QuestionCategory
+  questionText     String
+  helpText         String?
+  answerType       String              // text, boolean, number, select
+  options          Json?
+  sensitivity      QuestionSensitivity @default(PUBLIC)
+  isCoreOnboarding Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+
+  answers CandidateAnswer[]
+
+  @@index([category])
+  @@index([isCoreOnboarding])
+}
+
+model CandidateAnswer {
+  id                 String             @id @default(uuid())
+  profileId          String
+  questionKey        String
+  value              String             @db.Text
+  scope              AnswerScope        @default(GLOBAL)
+  scopeTarget        String?
+  verificationStatus VerificationStatus @default(USER_VERIFIED)
+  usageCount         Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile           CandidateProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  canonicalQuestion CanonicalQuestion @relation(fields: [questionKey], references: [key], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([questionKey])
+  @@index([scope])
+}
+
+// ---------------------------------------------------------------------------
+// Job Discovery Models (Phase 4, Spec §9, §10)
+// ---------------------------------------------------------------------------
+
+enum JobSourceProvider {
+  REMOTIVE
+  GREENHOUSE
+  LEVER
+  ADZUNA
+  ASHBY
+  USER_PASTED
+  ORG_POSTED
+  CUSTOM
+}
+
+enum JobPostingStatus {
+  OPEN
+  STALE
+  CLOSED
+  UNKNOWN
+}
+
+enum JobRemoteType {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum JobSeniority {
+  INTERN
+  ENTRY
+  MID
+  SENIOR
+  LEAD
+  EXECUTIVE
+}
+
+enum SearchFrequency {
+  REALTIME
+  DAILY
+  WEEKLY
+}
+
+model JobPosting {
+  id             String            @id @default(uuid())
+  provider       JobSourceProvider @default(REMOTIVE)
+  providerJobId  String?
+  company        String
+  title          String
+  description    String            @db.Text
+  jobUrl         String
+  applyUrl       String?
+  location       String?
+  country        String?
+  remoteType     JobRemoteType     @default(REMOTE)
+  employmentType String            @default("Full-time")
+  seniority      JobSeniority      @default(MID)
+  minSalary      Int?
+  maxSalary      Int?
+  currency       String            @default("USD")
+  skills         String[]
+  qualifications String[]
+  status         JobPostingStatus  @default(OPEN)
+  fingerprint    String            @unique
+  postedAt       DateTime?
+  lastSeenAt     DateTime          @default(now())
+  expiresAt      DateTime?
+  attribution    String?
+  rawPayload     Json?
+  organizationId String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  requirements   JobRequirement[]
+  applications   Application[]
+  missingInfoRequests MissingInfoRequest[]
+
+  @@index([provider, providerJobId])
+  @@index([status])
+  @@index([remoteType])
+  @@index([seniority])
+  @@index([company])
+  @@index([createdAt])
+  @@index([fingerprint])
+}
+
+model JobRequirement {
+  id               String      @id @default(uuid())
+  jobId            String
+  description      String      @db.Text
+  skill            String?
+  isHardConstraint Boolean     @default(false)
+  weight           Float       @default(1.0)
+  category         String      @default("TECHNICAL")
+  minYears         Int?
+  createdAt        DateTime    @default(now())
+
+  job              JobPosting  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([skill])
+}
+
+model SavedSearch {
+  id          String          @id @default(uuid())
+  userId      String
+  name        String
+  keywords    String?
+  location    String?
+  remoteOnly  Boolean         @default(false)
+  minSalary   Int?
+  seniority   JobSeniority?
+  frequency   SearchFrequency @default(DAILY)
+  isActive    Boolean         @default(true)
+  lastRunAt   DateTime?
+  matchCount  Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+// ---------------------------------------------------------------------------
+// Application Lifecycle & Workflow Models (Phase 6, Spec §12, §13, §14, §15)
+// ---------------------------------------------------------------------------
+
+enum ApplicationStage {
+  SAVED
+  PREPARING
+  APPLIED
+  SCREENING
+  INTERVIEWING
+  OFFERED
+  REJECTED
+  WITHDRAWN
+  NO_RESPONSE
+}
+
+enum WorkflowStatus {
+  SAVED
+  QUEUED
+  JOB_VALIDATED
+  PROFILE_MATCHED
+  APPLICATION_PREPARED
+  WAITING_FOR_USER
+  AWAITING_APPROVAL
+  READY_TO_SUBMIT
+  SUBMITTING
+  SUBMITTED
+  SUBMISSION_UNCERTAIN
+  FAILED
+  NEEDS_INTERVENTION
+  CANCELLED
+}
+
+enum ExecutionMode {
+  PREPARE_ONLY
+  APPROVAL_REQUIRED
+  AUTO_APPLY
+}
+
+enum SubmissionChannel {
+  OFFICIAL_API
+  ASSISTED_EXTENSION
+  PLAYWRIGHT_AUTO
+  EMAIL
+  MANUAL_FALLBACK
+}
+
+enum MissingInfoStatus {
+  PENDING
+  ANSWERED
+  SKIPPED
+}
+
+model Application {
+  id                       String            @id @default(uuid())
+  userId                   String
+  jobId                    String
+  stage                    ApplicationStage  @default(SAVED)
+  workflowStatus           WorkflowStatus    @default(SAVED)
+  mode                     ExecutionMode     @default(APPROVAL_REQUIRED)
+  matchScore               Float             @default(0.0)
+  decisionExplanation      String?           @db.Text
+  tailoredResumeId         String?
+  tailoredResumeJson       Json?
+  coverLetterText          String?           @db.Text
+  preparedAnswers          Json?
+  contentHash              String?
+  approvalRequestedAt      DateTime?
+  approvedAt               DateTime?
+  approvedByUserId         String?
+  submissionChannel        SubmissionChannel @default(MANUAL_FALLBACK)
+  submissionConfirmationId String?
+  submissionSnapshot       Json?
+  rejectionReason          String?
+  notes                    String?           @db.Text
+  appliedAt                DateTime?
+  lastActivityAt           DateTime          @default(now())
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  user                     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job                      JobPosting        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  events                   ApplicationEvent[]
+  missingItems             MissingInfoRequest[]
+  interviews               InterviewSchedule[]
+  outreachMessages         RecruiterOutreach[]
+  inboundEmails            InboundEmailEvent[]
+
+  @@unique([userId, jobId])
+  @@index([userId, stage])
+  @@index([workflowStatus])
+  @@index([createdAt])
+}
+
+model ApplicationEvent {
+  id            String      @id @default(uuid())
+  applicationId String
+  eventType     String
+  fromStatus    String?
+  toStatus      String?
+  actorType     String      @default("USER")
+  actorId       String?
+  title         String
+  description   String?     @db.Text
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+}
+
+model MissingInfoRequest {
+  id              String            @id @default(uuid())
+  userId          String
+  applicationId   String
+  jobId           String
+  questionKey     String
+  questionText    String            @db.Text
+  category        String            @default("EXPERIENCE")
+  reason          String            @db.Text
+  suggestedAnswer String?           @db.Text
+  candidateAnswer String?           @db.Text
+  answerScope     AnswerScope       @default(GLOBAL)
+  status          MissingInfoStatus @default(PENDING)
+  resolvedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application     Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  job             JobPosting        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([applicationId])
+}
+
+model InterviewSchedule {
+  id               String      @id @default(uuid())
+  applicationId    String
+  roundName        String
+  roundType        String      @default("HR")
+  scheduledAt      DateTime
+  durationMinutes  Int         @default(45)
+  meetingLink      String?
+  interviewerNames String[]
+  notes            String?     @db.Text
+  prepQuestions    Json?
+  status           String      @default("SCHEDULED")
+  calendarEventId  String?
+  calendarProvider String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  application      Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, scheduledAt])
+}
+
+// ---------------------------------------------------------------------------
+// Email Integration & Recruiter Outreach Models (Phase 8)
+// ---------------------------------------------------------------------------
+
+model UserIntegration {
+  id                    String              @id @default(uuid())
+  userId                String
+  provider              IntegrationProvider
+  accountEmail          String
+  status                IntegrationStatus   @default(CONNECTED)
+  scopes                String[]
+  encryptedAccessToken  String              @db.Text
+  encryptedRefreshToken String?             @db.Text
+  tokenExpiresAt        DateTime?
+  encryptedDek          String              @db.Text
+  iv                    String
+  authTag               String
+  metadata              Json?
+  lastSyncedAt          DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, accountEmail])
+  @@index([userId, provider])
+}
+
+model RecruiterOutreach {
+  id             String         @id @default(uuid())
+  userId         String
+  applicationId  String?
+  company        String
+  jobTitle       String
+  recipientName  String
+  recipientEmail String
+  subject        String
+  bodyText       String         @db.Text
+  contentHash    String
+  status         OutreachStatus @default(DRAFT)
+  approvedAt     DateTime?
+  sentAt         DateTime?
+  messageId      String?
+  provider       String?
+  followUpCount  Int            @default(0)
+  lastFollowUpAt DateTime?
+  notes          String?        @db.Text
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application    Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([userId, company])
+}
+
+model InboundEmailEvent {
+  id                 String                      @id @default(uuid())
+  userId             String
+  applicationId      String?
+  provider           String                      @default("GMAIL")
+  messageId          String
+  senderEmail        String
+  senderName         String?
+  recipientEmail     String
+  subject            String
+  snippet            String?                     @db.Text
+  receivedAt         DateTime
+  classifiedCategory EmailClassificationCategory
+  confidence         Float                       @default(1.0)
+  suggestedStatus    String?
+  autoApplied        Boolean                     @default(false)
+  isResolved         Boolean                     @default(false)
+  actionTaken        String?
+  createdAt          DateTime                    @default(now())
+
+  user               User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application        Application?                @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, messageId])
+  @@index([userId, classifiedCategory])
+  @@index([applicationId])
+}
+
+// ---------------------------------------------------------------------------
+// Billing, Plans, Entitlements & Metering (Phase 9)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id             String          @id @default(uuid())
+  key            String          @unique
+  name           String
+  description    String?         @db.Text
+  tier           PlanTier        @default(INDIVIDUAL)
+  price          Int             @default(0)
+  currency       String          @default("INR")
+  interval       BillingInterval @default(MONTHLY)
+  isActive       Boolean         @default(true)
+  isPopular      Boolean         @default(false)
+  entitlements   Json
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  subscriptions  Subscription[]
+
+  @@index([key, isActive])
+  @@index([tier, isActive])
+}
+
+model Subscription {
+  id                     String              @id @default(uuid())
+  userId                 String
+  orgId                  String?
+  planId                 String
+  provider               PaymentProviderType @default(FREE_DEV)
+  providerSubscriptionId String?
+  providerCustomerId     String?
+  status                 SubscriptionStatus  @default(ACTIVE)
+  currentPeriodStart     DateTime            @default(now())
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean             @default(false)
+  canceledAt             DateTime?
+  trialEnd               DateTime?
+  seatsCount             Int                 @default(1)
+  metadata               Json?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  user                   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org                    Organization?       @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  plan                   Plan                @relation(fields: [planId], references: [id])
+  invoices               Invoice[]
+
+  @@index([userId, status])
+  @@index([orgId, status])
+  @@index([provider, providerSubscriptionId])
+}
+
+model Invoice {
+  id                 String              @id @default(uuid())
+  userId             String
+  orgId              String?
+  subscriptionId     String?
+  invoiceNumber      String              @unique
+  provider           PaymentProviderType @default(FREE_DEV)
+  providerPaymentId  String?
+  providerOrderId    String?
+  subtotal           Int
+  taxAmount          Int                 @default(0)
+  total              Int
+  currency           String              @default("INR")
+  status             InvoiceStatus       @default(PAID)
+  customerGstin      String?
+  legalEntityName    String?
+  legalAddress       String?
+  sacCode            String              @default("998314")
+  lineItems          Json
+  paidAt             DateTime?
+  pdfUrl             String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org                Organization?       @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  subscription       Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([orgId])
+  @@index([invoiceNumber])
+}
+
+model DailyUsageMeter {
+  id                   String   @id @default(uuid())
+  userId               String
+  date                 String
+  discoveryRuns        Int      @default(0)
+  applicationsPrepared Int      @default(0)
+  autoAppliesExecuted  Int      @default(0)
+  tailoredResumes      Int      @default(0)
+  outreachEmailsSent   Int      @default(0)
+  aiTokensUsed         Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model PaymentWebhookEvent {
+  id           String               @id @default(uuid())
+  provider     PaymentProviderType
+  eventId      String
+  eventType    String
+  payload      Json
+  status       WebhookProcessStatus @default(SUCCESS)
+  errorMessage String?
+  receivedAt   DateTime             @default(now())
+  processedAt  DateTime?
+
+  @@unique([provider, eventId])
+  @@index([provider, eventType])
+}
+
+

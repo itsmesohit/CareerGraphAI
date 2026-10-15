@@ -1,0 +1,181 @@
+/* CareerGraph AI In-Page Assistant Styles */
+
+#cg-assistant-hud {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: rgba(9, 13, 22, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(14, 165, 233, 0.15);
+  border-radius: 16px;
+  padding: 14px 18px;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#cg-assistant-hud:hover {
+  border-color: rgba(56, 189, 248, 0.5);
+  transform: translateY(-2px);
+}
+
+.cg-hud-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.cg-hud-icon {
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.cg-hud-badge {
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  padding: 3px 7px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-weight: 600;
+}
+
+.cg-hud-btn {
+  background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.cg-hud-btn:hover {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  transform: scale(1.02);
+}
+
+.cg-hud-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cg-hud-btn-secondary:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Form Field Highlights */
+.cg-field-filled {
+  outline: 2px solid #10b981 !important;
+  outline-offset: 1px !important;
+  background-color: rgba(16, 185, 129, 0.05) !important;
+  transition: outline 0.2s ease;
+}
+
+.cg-field-unknown {
+  outline: 2px solid #f59e0b !important;
+  outline-offset: 1px !important;
+  background-color: rgba(245, 158, 11, 0.05) !important;
+  transition: outline 0.2s ease;
+}
+
+/* Phase 14 — Job Capture HUD (light theme, matches the new web UI) */
+#cg-capture-hud {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  border-radius: 16px;
+  padding: 14px 18px;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#cg-capture-hud:hover {
+  border-color: rgba(14, 165, 233, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+}
+
+.cg-capture-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+/* Capture result toast */
+#cg-capture-toast {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 12px;
+  max-width: 380px;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+#cg-capture-toast.cg-toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#cg-capture-toast.cg-toast-ok {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  box-shadow: 0 12px 28px rgba(5, 150, 105, 0.18);
+}
+
+#cg-capture-toast.cg-toast-err {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  box-shadow: 0 12px 28px rgba(185, 28, 28, 0.16);
+}
